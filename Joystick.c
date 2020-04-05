@@ -26,8 +26,6 @@ these buttons for our use.
 
 #include "Joystick.h"
 
-extern const uint8_t image_data[0x12c1] PROGMEM;
-
 // Main entry point.
 int main(void) {
 	// We'll start by performing hardware and peripheral setup.
@@ -37,6 +35,12 @@ int main(void) {
 	// Once that's done, we'll enter an infinite loop.
 	for (;;)
 	{
+		// Stop if the OK button is pressed.
+		if (!(PIND & _BV(PD7))) {
+			PORTD |= _BV(PD5);
+			USB_Disable();
+			while (1);
+		}
 		// We need to run our task to process and deliver data for our IN and OUT endpoints.
 		HID_Task();
 		// We also need to run the main USB management task.
@@ -50,20 +54,18 @@ void SetupHardware(void) {
 	MCUSR &= ~(1 << WDRF);
 	wdt_disable();
 
+	// Enable OK button hooked between PD4 and PD7
+	DDRD |= _BV(PD4);
+	PORTD &= ~_BV(PD4);
+	DDRD &= ~_BV(PD7);
+	PORTD |= _BV(PD7);
+	// Set up RX LED as indicator
+	DDRD |= _BV(PD5);
+
 	// We need to disable clock division before initializing the USB hardware.
 	clock_prescale_set(clock_div_1);
 	// We can then initialize our hardware and peripherals, including the USB stack.
 
-	#ifdef ALERT_WHEN_DONE
-	// Both PORTD and PORTB will be used for the optional LED flashing and buzzer.
-	#warning LED and Buzzer functionality enabled. All pins on both PORTB and \
-PORTD will toggle when printing is done.
-	DDRD  = 0xFF; //Teensy uses PORTD
-	PORTD =  0x0;
-                  //We'll just flash all pins on both ports since the UNO R3
-	DDRB  = 0xFF; //uses PORTB. Micro can use either or, but both give us 2 LEDs
-	PORTB =  0x0; //The ATmega328P on the UNO will be resetting, so unplug it?
-	#endif
 	// The USB stack should be initialized last.
 	USB_Init();
 }
@@ -140,12 +142,7 @@ void HID_Task(void) {
 
 typedef enum {
 	SYNC_CONTROLLER,
-	SYNC_POSITION,
-	STOP_X,
-	STOP_Y,
-	MOVE_X,
-	MOVE_Y,
-	DONE
+  RUNNING
 } State_t;
 State_t state = SYNC_CONTROLLER;
 
@@ -154,9 +151,7 @@ int echoes = 0;
 USB_JoystickReport_Input_t last_report;
 
 int report_count = 0;
-int xpos = 0;
-int ypos = 0;
-int portsval = 0;
+bool last_a_pressed = false;
 
 // Prepare the next report for the host.
 void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
@@ -184,7 +179,7 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 			if (report_count > 100)
 			{
 				report_count = 0;
-				state = SYNC_POSITION;
+				state = RUNNING;
 			}
 			else if (report_count == 25 || report_count == 50)
 			{
@@ -196,71 +191,17 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 			}
 			report_count++;
 			break;
-		case SYNC_POSITION:
-			if (report_count == 250)
-			{
-				report_count = 0;
-				xpos = 0;
-				ypos = 0;
-				state = STOP_X;
-			}
-			else
-			{
-				// Moving faster with LX/LY
-				ReportData->LX = STICK_MIN;
-				ReportData->LY = STICK_MIN;
-			}
-			if (report_count == 75 || report_count == 150)
-			{
-				// Clear the screen
-				ReportData->Button |= SWITCH_MINUS;
-			}
-			report_count++;
-			break;
-		case STOP_X:
-			state = MOVE_X;
-			break;
-		case STOP_Y:
-			if (ypos < 120 - 1)
-				state = MOVE_Y;
-			else
-				state = DONE;
-			break;
-		case MOVE_X:
-			if (ypos % 2)
-			{
-				ReportData->HAT = HAT_LEFT;
-				xpos--;
-			}
-			else
-			{
-				ReportData->HAT = HAT_RIGHT;
-				xpos++;
-			}
-			if (xpos > 0 && xpos < 320 - 1)
-				state = STOP_X;
-			else
-				state = STOP_Y;
-			break;
-		case MOVE_Y:
-			ReportData->HAT = HAT_BOTTOM;
-			ypos++;
-			state = STOP_X;
-			break;
-		case DONE:
-			#ifdef ALERT_WHEN_DONE
-			portsval = ~portsval;
-			PORTD = portsval; //flash LED(s) and sound buzzer if attached
-			PORTB = portsval;
-			_delay_ms(250);
-			#endif
-			return;
+    case RUNNING:
+      if (!last_a_pressed) {
+        ReportData->Button |= SWITCH_A;
+        PORTD &= ~_BV(PD5);
+        last_a_pressed = true;
+      } else {
+        last_a_pressed = false;
+				PORTD |= _BV(PD5);
+      }
+      break;
 	}
-
-	// Inking
-	if (state != SYNC_CONTROLLER && state != SYNC_POSITION)
-		if (pgm_read_byte(&(image_data[(xpos / 8) + (ypos * 40)])) & 1 << (xpos % 8))
-			ReportData->Button |= SWITCH_A;
 
 	// Prepare to echo this report
 	memcpy(&last_report, ReportData, sizeof(USB_JoystickReport_Input_t));
