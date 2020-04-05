@@ -151,7 +151,7 @@ int echoes = 0;
 USB_JoystickReport_Input_t last_report;
 
 int report_count = 0;
-uint8_t last_a_press_elapsed = 255;
+uint8_t last_a_press_elapsed = 0;
 
 // Prepare the next report for the host.
 void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
@@ -192,14 +192,13 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 			report_count++;
 			break;
 		case RUNNING:
-			if (last_a_press_elapsed >= 10) {
+			if (last_a_press_elapsed < 20) {
 				ReportData->Button |= SWITCH_A;
 				PORTD &= ~_BV(PD5);
-				last_a_press_elapsed = 0;
 			} else {
 				PORTD |= _BV(PD5);
-				last_a_press_elapsed++;
 			}
+			last_a_press_elapsed = (last_a_press_elapsed + 1) % 30;
 			break;
 	}
 
