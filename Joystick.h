@@ -52,6 +52,36 @@
 
 #include "Descriptors.h"
 
+volatile uint16_t milliseconds = 0;
+
+// Macros for setting indicators
+#define SET_LED_L(VAL1) ((VAL1) ? (PORTB &= ~_BV(PB0)) : (PORTB |= _BV(PB0)))
+#define SET_LED_R(VAL1) ((VAL1) ? (PORTD &= ~_BV(PD5)) : (PORTD |= _BV(PD5)))
+
+// Whether button was pressed in the last cycle
+bool btn_sel_last_state = false;
+bool btn_ok_last_state = false;
+// Whether button has been pressed in this cycle but not the last
+bool btn_sel_detected = false;
+bool btn_ok_detected = false;
+
+// Mode and state definitions
+typedef enum {
+	FAST,
+	SLOW,
+	NOOKS_CRANNY_BULK_BUY,
+	METEOR,
+	OFF,
+} Mode_t;
+Mode_t mode = FAST;
+
+typedef enum {
+	STANDBY,
+	SYNC_CONTROLLER,
+	RUNNING
+} State_t;
+State_t state = STANDBY;
+
 // Type Defines
 // Enumeration for joystick buttons.
 typedef enum {
@@ -108,8 +138,6 @@ typedef struct {
 } USB_JoystickReport_Output_t;
 
 // Function Prototypes
-// Setup all necessary hardware, including USB initialization.
-void SetupHardware(void);
 // Process and deliver data from IN and OUT endpoints.
 void HID_Task(void);
 // USB device event handlers.

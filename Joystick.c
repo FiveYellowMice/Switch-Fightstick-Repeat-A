@@ -26,21 +26,100 @@ these buttons for our use.
 
 #include "Joystick.h"
 
-// Main entry point.
+
+
 int main(void) {
-	// We'll start by performing hardware and peripheral setup.
-	SetupHardware();
-	// We'll then enable global interrupts for our use.
+	// We need to disable watchdog if enabled by bootloader/fuses.
+	MCUSR &= ~(1 << WDRF);
+	wdt_disable();
+
+	DDRD &= ~_BV(PD0);
+	PORTD |= _BV(PD0); // Enable internal pullup for SEL button
+	DDRD |= _BV(PD4);
+	PORTD &= ~_BV(PD4); // Set PD4 to ground in order to use OK button
+	DDRD &= ~_BV(PD7);
+	PORTD |= _BV(PD7); // Enable internal pullup for OK button
+
+	DDRB |= _BV(PB0); // Left LED
+	DDRD |= _BV(PD5); // Right LED
+
+	// Enable internal clock with scaler 64
+	TCCR0B |= _BV(CS00) | _BV(CS01);
+	// Initialize TIMER0
+	TCNT0 = 0;
+	TIMSK0 |= _BV(TOIE0);
+	sei();
+
+	// We need to disable clock division before initializing the USB hardware.
+	clock_prescale_set(clock_div_1);
+	// The USB stack should be initialized last.
+	//USB_Init();
+
 	GlobalInterruptEnable();
-	// Once that's done, we'll enter an infinite loop.
-	for (;;)
-	{
+
+	for (;;) {
 		// Stop if the OK button is pressed.
-		if (!(PIND & _BV(PD7))) {
-			PORTD |= _BV(PD5);
-			USB_Disable();
-			while (1);
+		//if (READ_BTN_OK()) {
+		//	SET_LED_R(false);
+		//	USB_Disable();
+		//	while (1);
+		//}
+
+		// Update button states
+		bool btn_sel_current_state = !(PIND & _BV(PD0));
+		bool btn_ok_current_state = !(PIND & _BV(PD7));
+		btn_sel_detected = btn_sel_current_state && !btn_sel_last_state;
+		btn_ok_detected = btn_ok_current_state && !btn_ok_last_state;
+		btn_sel_last_state = btn_sel_current_state;
+		btn_ok_last_state = btn_ok_current_state;
+
+		if (state == STANDBY) {
+
+			// Blink left LED to indicate selected mode
+			switch (mode) {
+				case FAST:
+					SET_LED_L(milliseconds % 100 < 50);
+					break;
+				case SLOW:
+					SET_LED_L(milliseconds % 500 < 50);
+					break;
+				case NOOKS_CRANNY_BULK_BUY:
+					SET_LED_L(milliseconds % 600 < 50 || (milliseconds % 600 >= 100 && milliseconds % 600 < 150));
+					break;
+				case METEOR:
+					SET_LED_L((milliseconds % 1500 >= 500 && milliseconds % 1500 < 550) || milliseconds % 1500 >= 1000);
+					break;
+				case OFF:
+					break;
+			}
+
+			// Switch selected modes
+			if (btn_sel_detected) {
+				SET_LED_L(false);
+				if (mode == OFF) {
+					mode = 0;
+				} else {
+					mode++;
+				}
+			}
+			// Start running
+			if (btn_ok_detected && mode != OFF) {
+				SET_LED_L(false);
+				USB_Init();
+				milliseconds = 0;
+				state = SYNC_CONTROLLER;
+			}
+
+		} else {
+			// Stop running
+			if (btn_ok_detected) {
+				SET_LED_R(false);
+				USB_Disable();
+				milliseconds = 0;
+				state = STANDBY;
+			}
 		}
+		
 		// We need to run our task to process and deliver data for our IN and OUT endpoints.
 		HID_Task();
 		// We also need to run the main USB management task.
@@ -48,26 +127,9 @@ int main(void) {
 	}
 }
 
-// Configures hardware and peripherals, such as the USB peripherals.
-void SetupHardware(void) {
-	// We need to disable watchdog if enabled by bootloader/fuses.
-	MCUSR &= ~(1 << WDRF);
-	wdt_disable();
-
-	// Enable OK button hooked between PD4 and PD7
-	DDRD |= _BV(PD4);
-	PORTD &= ~_BV(PD4);
-	DDRD &= ~_BV(PD7);
-	PORTD |= _BV(PD7);
-	// Set up RX LED as indicator
-	DDRD |= _BV(PD5);
-
-	// We need to disable clock division before initializing the USB hardware.
-	clock_prescale_set(clock_div_1);
-	// We can then initialize our hardware and peripherals, including the USB stack.
-
-	// The USB stack should be initialized last.
-	USB_Init();
+// Increment milliseconds counter per 1.024 milliseconds.
+ISR(TIMER0_OVF_vect) {
+	milliseconds = (milliseconds + 1) % 60000;
 }
 
 // Fired to indicate that the device is enumerating.
@@ -140,18 +202,9 @@ void HID_Task(void) {
 	}
 }
 
-typedef enum {
-	SYNC_CONTROLLER,
-  RUNNING
-} State_t;
-State_t state = SYNC_CONTROLLER;
-
 #define ECHOES 2
 int echoes = 0;
 USB_JoystickReport_Input_t last_report;
-
-int report_count = 0;
-uint8_t last_a_press_elapsed = 0;
 
 // Prepare the next report for the host.
 void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
@@ -172,34 +225,44 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 		return;
 	}
 
-	// States and moves management
-	switch (state)
-	{
-		case SYNC_CONTROLLER:
-			if (report_count > 100)
-			{
-				report_count = 0;
-				state = RUNNING;
-			}
-			else if (report_count == 25 || report_count == 50)
-			{
-				ReportData->Button |= SWITCH_L | SWITCH_R;
-			}
-			else if (report_count == 75 || report_count == 100)
-			{
-				ReportData->Button |= SWITCH_A;
-			}
-			report_count++;
-			break;
-		case RUNNING:
-			if (last_a_press_elapsed < 20) {
-				ReportData->Button |= SWITCH_A;
-				PORTD &= ~_BV(PD5);
-			} else {
-				PORTD |= _BV(PD5);
-			}
-			last_a_press_elapsed = (last_a_press_elapsed + 1) % 30;
-			break;
+	// States management
+	if (state == SYNC_CONTROLLER) {
+		if (milliseconds >= 6000) {
+			milliseconds = 0;
+			state = RUNNING;
+		} else if (milliseconds >= 4200 && milliseconds < 4400) {
+			ReportData->Button |= SWITCH_L | SWITCH_R;
+		} else if (milliseconds >= 4800 && milliseconds < 5000) {
+			ReportData->Button |= SWITCH_A;
+		}
+
+	} else {
+
+		// Act depending on mode
+		switch (mode) {
+			case FAST:
+				if (milliseconds % 100 < 50) {
+					ReportData->Button |= SWITCH_A;
+					SET_LED_R(true);
+				} else {
+					SET_LED_R(false);
+				}
+				break;
+			case SLOW:
+				if (milliseconds % 400 < 100) {
+					ReportData->Button |= SWITCH_A;
+					SET_LED_R(true);
+				} else {
+					SET_LED_R(false);
+				}
+				break;
+			case NOOKS_CRANNY_BULK_BUY:
+				break;
+			case METEOR:
+				break;
+			default:
+				;
+		}
 	}
 
 	// Prepare to echo this report
