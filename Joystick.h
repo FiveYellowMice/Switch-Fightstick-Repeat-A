@@ -78,7 +78,8 @@ Mode_t mode = FAST;
 typedef enum {
 	STANDBY,
 	SYNC_CONTROLLER,
-	RUNNING
+	RUNNING,
+	STOPPED
 } State_t;
 State_t state = STANDBY;
 

@@ -27,6 +27,7 @@ these buttons for our use.
 #include "Joystick.h"
 
 
+uint16_t fruits_bought = 0;
 
 int main(void) {
 	// We need to disable watchdog if enabled by bootloader/fuses.
@@ -102,21 +103,25 @@ int main(void) {
 					mode++;
 				}
 			}
-			// Start running
 			if (btn_ok_detected && mode != OFF) {
+				// Start running
 				SET_LED_L(false);
 				USB_Init();
+				fruits_bought = 0;
 				milliseconds = 0;
 				state = SYNC_CONTROLLER;
 			}
 
-		} else {
+		} else if (state == STOPPED) {
 			// Stop running
+			SET_LED_R(false);
+			USB_Disable();
+			milliseconds = 0;
+			state = STANDBY;
+
+		} else {
 			if (btn_ok_detected) {
-				SET_LED_R(false);
-				USB_Disable();
-				milliseconds = 0;
-				state = STANDBY;
+				state = STOPPED;
 			}
 		}
 		
@@ -257,6 +262,40 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 				}
 				break;
 			case NOOKS_CRANNY_BULK_BUY:
+				if (milliseconds < 50) {
+					// Select fruit
+					ReportData->Button |= SWITCH_A;
+					SET_LED_R(true);
+				} else if (milliseconds >= 3000 && milliseconds < 3050) {
+					// Advance dialog: Fruit? I can sell in single or in bulk. How many would you like?
+					ReportData->Button |= SWITCH_A;
+					SET_LED_R(true);
+				} else if (milliseconds >= 3500 && milliseconds < 3550) {
+					// Move cursor down to "I'll take 5!"
+					ReportData->HAT = HAT_BOTTOM;
+					SET_LED_R(true);
+				} else if (milliseconds >= 3800 && milliseconds < 3850) {
+					// Choose "I'll take 5!"
+					ReportData->Button |= SWITCH_A;
+					SET_LED_R(true);
+				} else if (milliseconds >= 5800 && milliseconds < 5850) {
+					// Advance dialog: Excellent purchase!
+					ReportData->Button |= SWITCH_A;
+					SET_LED_R(true);
+				} else if (milliseconds >= 7800 && milliseconds < 7850) {
+					// Advance dialog: Anything else look interesting?
+					ReportData->Button |= SWITCH_A;
+					SET_LED_R(true);
+				} else if (milliseconds >= 8300) {
+					fruits_bought += 5;
+					if (fruits_bought >= 400) {
+						state = STOPPED;
+					} else {
+						milliseconds = 0;
+					}
+				} else {
+					SET_LED_R(false);
+				}
 				break;
 			case METEOR:
 				break;
