@@ -298,6 +298,15 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 				}
 				break;
 			case METEOR:
+				if (milliseconds % 10000 < 150) {
+					ReportData->RY = STICK_MIN;
+					SET_LED_R(true);
+				} else if (milliseconds % 100 < 50) {
+					ReportData->Button |= SWITCH_A;
+					SET_LED_R(true);
+				} else {
+					SET_LED_R(false);
+				}
 				break;
 			default:
 				;
