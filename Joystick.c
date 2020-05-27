@@ -29,6 +29,7 @@ these buttons for our use.
 #include <avr/power.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include <LUFA/Drivers/USB/USB.h>
@@ -42,6 +43,7 @@ these buttons for our use.
 #include "Joystick.h"
 
 uint16_t fruits_bought = 0;
+uint16_t lit_pixels = 0;
 
 int main(void) {
 	// We need to disable watchdog if enabled by bootloader/fuses.
@@ -146,13 +148,12 @@ int main(void) {
 			//SET_LED_L(false);
 		}
 
-		
-		if (display_buffer[0]) {
-			memset(&display_buffer, 0, DISPLAY_BUFFER_SIZE);
-		} else {
-			memset(&display_buffer, -1, DISPLAY_BUFFER_SIZE);
-		}
+		display_draw_text(0, 32, PSTR("OwO"));
+		display_draw_text(0, 48, PSTR("Shana is cute."));
+
+		// Refresh screen content and clear display buffer to redraw in the next cycle
 		SSD1306_display();
+		display_clear();
 
 		// We need to run our task to process and deliver data for our IN and OUT endpoints.
 		HID_Task();

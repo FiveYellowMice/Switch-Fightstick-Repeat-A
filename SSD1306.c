@@ -1,9 +1,11 @@
 #include <avr/io.h>
+#include <avr/pgmspace.h>
 #include <stdbool.h>
 #include <string.h>
 
 #include <LUFA/Drivers/Peripheral/TWI.h>
 
+#include "font.h"
 #include "SSD1306.h"
 
 uint8_t display_buffer[DISPLAY_BUFFER_SIZE];
@@ -28,7 +30,7 @@ int SSD1306_setup(void) {
 		0xA0 | 0x01, // Set segment remap
 		0xC8, // Set COM scan mode to remapped
 		0xDA, 0x12, // Set COM pins hardware configuration to alternative
-		0x81, 0xCF, // Set contrast
+		0x81, 0x00, // Set contrast to lowest
 		0xD9, 0xF1, // Set precharge period, phase 1 to 15 DCLK, phase 2 to 1 DCLK
 		0xDB, 0x40, // Set Vcomh deselect level to unknown
 		0xA4, // Display resume
@@ -73,4 +75,52 @@ int SSD1306_command_list(uint8_t* data, size_t data_size) {
 
 	TWI_StopTransmission();
 	return 0;
+}
+
+void display_set_pixel(int16_t x, int16_t y, bool c) {
+	if (x < 0 || x >= 128 || y < 0 || y >= 64) {
+		// Outside of screen
+		return;
+	}
+
+	uint16_t byte_index = y / 8 * 128 + x;
+	uint8_t bit_index = y % 8;
+
+	if (c) {
+		display_buffer[byte_index] |= (1 << bit_index);
+	} else {
+		display_buffer[byte_index] &= ~(1 << bit_index);
+	}
+}
+
+void display_clear(void) {
+	memset(&display_buffer, 0, DISPLAY_BUFFER_SIZE);
+}
+
+void display_draw_glyph(int16_t x, int16_t y, char c) {
+	if (x <= -GLYPH_WIDTH || x >= 128 || y < 0 || y >= 64) {
+		// Outside of screen
+		return;
+	}
+	if (y % 16 != 0) {
+		// Cannot draw glyphs on places other than the 4 lines
+		return;
+	}
+	if (c < ' ' || c > '~') {
+		// Ignore unprintable characters
+		return;
+	}
+
+	for (uint8_t i = 0; i < GLYPH_WIDTH && x + i < 128; i++) {
+		uint16_t column = pgm_read_word(font + (c - 0x20) * GLYPH_WIDTH + i);
+		display_buffer[y / 8 * 128 + x + i] ^= (uint8_t) column;
+		display_buffer[(y / 8 + 1) * 128 + x + i] ^= (uint8_t) (column >> 8);
+	}
+}
+
+void display_draw_text(int16_t x, int16_t y, const char *s) {
+	char c;
+	for (uint8_t i = 0; (c = pgm_read_byte(s + i)) != '\0'; i++) {
+		display_draw_glyph(x + i * GLYPH_WIDTH, y, c);
+	}
 }
