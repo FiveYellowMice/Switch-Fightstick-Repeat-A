@@ -24,8 +24,22 @@ these buttons for our use.
  *  the demo and is responsible for the initial application hardware configuration.
  */
 
-#include "Joystick.h"
+#include <avr/io.h>
+#include <avr/wdt.h>
+#include <avr/power.h>
+#include <avr/interrupt.h>
+#include <avr/pgmspace.h>
+#include <string.h>
 
+#include <LUFA/Drivers/USB/USB.h>
+#include <LUFA/Drivers/Board/Joystick.h>
+#include <LUFA/Drivers/Board/LEDs.h>
+#include <LUFA/Drivers/Board/Buttons.h>
+#include <LUFA/Platform/Platform.h>
+
+#include "Descriptors.h"
+#include "SSD1306.h"
+#include "Joystick.h"
 
 uint16_t fruits_bought = 0;
 
@@ -34,15 +48,12 @@ int main(void) {
 	MCUSR &= ~(1 << WDRF);
 	wdt_disable();
 
-	DDRD &= ~_BV(PD0);
-	PORTD |= _BV(PD0); // Enable internal pullup for SEL button
-	DDRD |= _BV(PD4);
-	PORTD &= ~_BV(PD4); // Set PD4 to ground in order to use OK button
-	DDRD &= ~_BV(PD7);
-	PORTD |= _BV(PD7); // Enable internal pullup for OK button
-
 	DDRB |= _BV(PB0); // Left LED
 	DDRD |= _BV(PD5); // Right LED
+
+	// Buttons, INPUT_PULLUP
+	DDRD &= ~_BV(PD4); // BTN_R
+	PORTD |= _BV(PD4);
 
 	// Enable internal clock with scaler 64
 	TCCR0B |= _BV(CS00) | _BV(CS01);
@@ -50,6 +61,8 @@ int main(void) {
 	TCNT0 = 0;
 	TIMSK0 |= _BV(TOIE0);
 	sei();
+
+	SSD1306_setup();
 
 	// We need to disable clock division before initializing the USB hardware.
 	clock_prescale_set(clock_div_1);
@@ -67,14 +80,16 @@ int main(void) {
 		//}
 
 		// Update button states
+		/*
 		bool btn_sel_current_state = !(PIND & _BV(PD0));
 		bool btn_ok_current_state = !(PIND & _BV(PD7));
 		btn_sel_detected = btn_sel_current_state && !btn_sel_last_state;
 		btn_ok_detected = btn_ok_current_state && !btn_ok_last_state;
 		btn_sel_last_state = btn_sel_current_state;
 		btn_ok_last_state = btn_ok_current_state;
+		*/
 
-		if (state == STANDBY) {
+		/*if (state == STANDBY) {
 
 			// Blink left LED to indicate selected mode
 			switch (mode) {
@@ -123,8 +138,22 @@ int main(void) {
 			if (btn_ok_detected) {
 				state = STOPPED;
 			}
+		}*/
+
+		if (!(PIND & _BV(PD4))) {
+			//SET_LED_L(true);
+		} else {
+			//SET_LED_L(false);
 		}
+
 		
+		if (display_buffer[0]) {
+			memset(&display_buffer, 0, DISPLAY_BUFFER_SIZE);
+		} else {
+			memset(&display_buffer, -1, DISPLAY_BUFFER_SIZE);
+		}
+		SSD1306_display();
+
 		// We need to run our task to process and deliver data for our IN and OUT endpoints.
 		HID_Task();
 		// We also need to run the main USB management task.
@@ -134,7 +163,7 @@ int main(void) {
 
 // Increment milliseconds counter per 1.024 milliseconds.
 ISR(TIMER0_OVF_vect) {
-	milliseconds = (milliseconds + 1) % 60000;
+	milliseconds = milliseconds + 1;
 }
 
 // Fired to indicate that the device is enumerating.

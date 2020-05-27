@@ -36,23 +36,8 @@
 #ifndef _JOYSTICK_H_
 #define _JOYSTICK_H_
 
-/* Includes: */
-#include <avr/io.h>
-#include <avr/wdt.h>
-#include <avr/power.h>
-#include <avr/interrupt.h>
-#include <avr/pgmspace.h>
-#include <string.h>
 
-#include <LUFA/Drivers/USB/USB.h>
-#include <LUFA/Drivers/Board/Joystick.h>
-#include <LUFA/Drivers/Board/LEDs.h>
-#include <LUFA/Drivers/Board/Buttons.h>
-#include <LUFA/Platform/Platform.h>
-
-#include "Descriptors.h"
-
-volatile uint16_t milliseconds = 0;
+volatile uint32_t milliseconds = 0;
 
 // Macros for setting indicators
 #define SET_LED_L(VAL1) ((VAL1) ? (PORTB &= ~_BV(PB0)) : (PORTB |= _BV(PB0)))
