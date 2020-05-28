@@ -97,30 +97,36 @@ void display_clear(void) {
 	memset(&display_buffer, 0, DISPLAY_BUFFER_SIZE);
 }
 
-void display_draw_glyph(int16_t x, int16_t y, char c) {
-	if (x <= -GLYPH_WIDTH || x >= 128 || y < 0 || y >= 64) {
+void display_fill_line(int16_t x, int8_t line, uint8_t length, bool c) {
+	if (x < 0 || x + length - 1 >= 128 || line < 0 || line >= 4) {
 		// Outside of screen
 		return;
 	}
-	if (y % 16 != 0) {
-		// Cannot draw glyphs on places other than the 4 lines
-		return;
-	}
-	if (c < ' ' || c > '~') {
-		// Ignore unprintable characters
-		return;
-	}
 
-	for (uint8_t i = 0; i < GLYPH_WIDTH && x + i < 128; i++) {
-		uint16_t column = pgm_read_word(font + (c - 0x20) * GLYPH_WIDTH + i);
-		display_buffer[y / 8 * 128 + x + i] ^= (uint8_t) column;
-		display_buffer[(y / 8 + 1) * 128 + x + i] ^= (uint8_t) (column >> 8);
+	for (uint8_t i = 0; i < length; i++) {
+		display_buffer[line * 2 * 128 + x + i] = c ? 0xFF : 0x00;
+		display_buffer[(line * 2 + 1) * 128 + x + i] = c ? 0xFF : 0x00;
 	}
 }
 
-void display_draw_text(int16_t x, int16_t y, const char *s) {
+void display_draw_glyph(int16_t x, int8_t line, const uint16_t *glyph, uint8_t glyph_width) {
+	if (x <= -glyph_width || x >= 128 || line < 0 || line >= 4) {
+		// Outside of screen
+		return;
+	}
+
+	for (uint8_t i = 0; i < glyph_width && x + i < 128; i++) {
+		uint16_t column = pgm_read_word(glyph + i);
+		display_buffer[line * 2 * 128 + x + i] ^= (uint8_t) column;
+		display_buffer[(line * 2 + 1) * 128 + x + i] ^= (uint8_t) (column >> 8);
+	}
+}
+
+void display_draw_text(int16_t x, int8_t line, const char *s) {
 	char c;
 	for (uint8_t i = 0; (c = pgm_read_byte(s + i)) != '\0'; i++) {
-		display_draw_glyph(x + i * GLYPH_WIDTH, y, c);
+		if (c >= ' ' && c <= '~') {
+			display_draw_glyph(x + i * GLYPH_WIDTH_CHAR, line, font + (c - 0x20) * GLYPH_WIDTH_CHAR, GLYPH_WIDTH_CHAR);
+		}
 	}
 }

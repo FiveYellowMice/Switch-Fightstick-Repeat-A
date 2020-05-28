@@ -1,12 +1,14 @@
 <?php
 
+// Convert monochrome image (height=16) to uint16_t array
+
 $img = new Imagick();
 $img->readImage($argv[1]);
 
-echo "const uint16_t PROGMEM font[] = {\n";
+$width = $img->getImageWidth();
 
-for ($x = 0; $x < 950; $x++) {
-	echo "\t0b";
+for ($x = 0; $x < $width; $x++) {
+	echo "0b";
 	for ($y = 15; $y >= 0; $y--) {
 		$pixel = $img->getImagePixelColor($x, $y);
 		//var_dump($pixel->getColor());
@@ -18,5 +20,3 @@ for ($x = 0; $x < 950; $x++) {
 	}
 	echo ",\n";
 }
-
-echo "};\n";

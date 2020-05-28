@@ -39,6 +39,7 @@ these buttons for our use.
 #include <LUFA/Platform/Platform.h>
 
 #include "Descriptors.h"
+#include "font.h"
 #include "SSD1306.h"
 #include "Joystick.h"
 
@@ -148,8 +149,11 @@ int main(void) {
 			//SET_LED_L(false);
 		}
 
-		display_draw_text(0, 32, PSTR("OwO"));
-		display_draw_text(0, 48, PSTR("Shana is cute."));
+		display_draw_text(0, 0, PSTR("Menu"));
+		display_draw_text(49, 2, PSTR("OwO"));
+		display_draw_glyph(0, 3, symbol_return, 16);
+		display_draw_glyph(16, 3, symbol_usb, 16);
+		display_draw_glyph(32, 3, symbol_play, 16);
 
 		// Refresh screen content and clear display buffer to redraw in the next cycle
 		SSD1306_display();
