@@ -137,12 +137,20 @@ int main(void) {
 
 		buttons_debounce();
 
+		Routine_Flags routine_flags = {0};
+		routine_flags.returnable = (bool) current_routine->upper_level;
+		routine_flags.indicator_return = (bool) current_routine->upper_level;
+
 		display_draw_text(0, 0, current_routine->name, false);
+
 		if (current_routine->function) {
 			// Execute the routine if it has function
-			(current_routine->function)();
+			(current_routine->function)(&routine_flags);
 
 		} else {
+			routine_flags.indicator_left = true;
+			routine_flags.indicator_right = true;
+
 			// Display the menu
 			uint8_t drawn_member_index = current_routine->menu_current_index;
 			if (current_routine->menu_lower_selected) {
@@ -185,15 +193,29 @@ int main(void) {
 			}
 		}
 
-		if (BTN_STATE(BTN_RETURN)) {
-			if (current_routine->upper_level) {
+		if (routine_flags.returnable && current_routine->upper_level) {
+			if (BTN_STATE(BTN_RETURN)) {
 				current_routine = current_routine->upper_level;
 			}
 		}
 
-		display_draw_glyph(0, 3, symbol_return, 16);
-		display_draw_glyph(16, 3, symbol_usb, 16);
-		display_draw_glyph(32, 3, symbol_play, 16);
+		if (routine_flags.indicator_return) {
+			display_draw_glyph(0, 3, symbol_return, 16);
+		}
+		if (routine_flags.indicator_usb) {
+			display_draw_glyph(16, 3, symbol_usb, 16);
+		}
+		if (routine_flags.indicator_play_pause == PAUSE) {
+			display_draw_glyph(32, 3, symbol_pause, 16);
+		} else if (routine_flags.indicator_play_pause == PLAY) {
+			display_draw_glyph(32, 3, symbol_play, 16);
+		}
+		if (routine_flags.indicator_left) {
+			display_draw_glyph(112, 3, symbol_triangle_left, 8);
+		}
+		if (routine_flags.indicator_right) {
+			display_draw_glyph(120, 3, symbol_triangle_right, 8);
+		}
 
 		// Refresh screen content and clear display buffer to redraw in the next cycle
 		SET_LED_L(SSD1306_display());

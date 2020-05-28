@@ -8,7 +8,7 @@
 
 const char PROGMEM routine_sleep_name[] = "Sleep";
 
-void routine_sleep_function(void) {
+void routine_sleep_function(Routine_Flags *routine_flags) {
 	display_draw_text(0, 1, PSTR("Sleep"), false);
 }
 

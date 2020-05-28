@@ -8,7 +8,7 @@
 
 const char PROGMEM routine_mash_a_name[] = "Mash A";
 
-void routine_mash_a_function(void) {
+void routine_mash_a_function(Routine_Flags *routine_flags) {
 	display_draw_text(0, 1, PSTR("AAAAAAA"), false);
 }
 
