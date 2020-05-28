@@ -11,7 +11,7 @@
 uint8_t display_buffer[DISPLAY_BUFFER_SIZE];
 
 int SSD1306_setup(void) {
-	TWI_Init(TWI_BIT_PRESCALE_1, TWI_BITLENGTH_FROM_FREQ(1, 1000000L));
+	TWI_Init(TWI_BIT_PRESCALE_1, TWI_BITLENGTH_FROM_FREQ(1, 800000L));
 
 	// Clear buffer
 	memset(&display_buffer, 0, DISPLAY_BUFFER_SIZE);

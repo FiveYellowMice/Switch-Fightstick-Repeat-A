@@ -73,7 +73,7 @@ int main(void) {
 
 	buttons_setup();
 
-	SSD1306_setup();
+	SET_LED_L(SSD1306_setup());
 
 	// We need to disable clock division before initializing the USB hardware.
 	clock_prescale_set(clock_div_1);
@@ -191,31 +191,12 @@ int main(void) {
 			}
 		}
 
-		/*
-		if (BTN_STATE(BTN_LEFT)) {
-			counter--;
-		}
-		if (BTN_STATE(BTN_RETURN)) {
-			counter = 0;
-		}
-		if (BTN_STATE(BTN_PLAY_PAUSE)) {
-			counter = 255;
-		}
-		if (BTN_STATE(BTN_RIGHT)) {
-			counter++;
-		}
-
-		char counter_text[4] = {0};
-		sprintf(counter_text, "%d", counter);
-		display_draw_text(0, 1, counter_text, true);
-		*/
-
 		display_draw_glyph(0, 3, symbol_return, 16);
 		display_draw_glyph(16, 3, symbol_usb, 16);
 		display_draw_glyph(32, 3, symbol_play, 16);
 
 		// Refresh screen content and clear display buffer to redraw in the next cycle
-		SSD1306_display();
+		SET_LED_L(SSD1306_display());
 		display_clear();
 
 		// We need to run our task to process and deliver data for our IN and OUT endpoints.
