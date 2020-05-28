@@ -42,7 +42,10 @@ these buttons for our use.
 #include "Descriptors.h"
 #include "font.h"
 #include "SSD1306.h"
+#include "buttons.h"
 #include "Joystick.h"
+
+volatile uint32_t milliseconds = 0;
 
 uint16_t fruits_bought = 0;
 uint8_t counter = 0;
@@ -55,16 +58,14 @@ int main(void) {
 	DDRB |= _BV(PB0); // Left LED
 	DDRD |= _BV(PD5); // Right LED
 
-	// Buttons, INPUT_PULLUP
-	DDRD &= ~_BV(PD4); // BTN_R
-	PORTD |= _BV(PD4);
-
 	// Enable internal clock with scaler 64
 	TCCR0B |= _BV(CS00) | _BV(CS01);
 	// Initialize TIMER0
 	TCNT0 = 0;
 	TIMSK0 |= _BV(TOIE0);
 	sei();
+
+	buttons_setup();
 
 	SSD1306_setup();
 
@@ -144,15 +145,27 @@ int main(void) {
 			}
 		}*/
 
-		if (!(PIND & _BV(PD4))) {
+		buttons_debounce();
+
+		display_draw_text(0, 0, PSTR("Menu"), false);
+
+		if (BTN_STATE(BTN_LEFT)) {
+			counter--;
+		}
+		if (BTN_STATE(BTN_RETURN)) {
+			counter = 0;
+		}
+		if (BTN_STATE(BTN_PLAY_PAUSE)) {
+			counter = 255;
+		}
+		if (BTN_STATE(BTN_RIGHT)) {
 			counter++;
 		}
 
-		display_draw_text(0, 0, PSTR("Menu"), false);
 		char counter_text[4] = {0};
 		sprintf(counter_text, "%d", counter);
 		display_draw_text(0, 1, counter_text, true);
-		display_draw_text(49, 2, PSTR("OwO"), false);
+
 		display_draw_glyph(0, 3, symbol_return, 16);
 		display_draw_glyph(16, 3, symbol_usb, 16);
 		display_draw_glyph(32, 3, symbol_play, 16);

@@ -37,18 +37,11 @@
 #define _JOYSTICK_H_
 
 
-volatile uint32_t milliseconds = 0;
+extern volatile uint32_t milliseconds;
 
 // Macros for setting indicators
 #define SET_LED_L(VAL1) ((VAL1) ? (PORTB &= ~_BV(PB0)) : (PORTB |= _BV(PB0)))
 #define SET_LED_R(VAL1) ((VAL1) ? (PORTD &= ~_BV(PD5)) : (PORTD |= _BV(PD5)))
-
-// Whether button was pressed in the last cycle
-bool btn_sel_last_state = false;
-bool btn_ok_last_state = false;
-// Whether button has been pressed in this cycle but not the last
-bool btn_sel_detected = false;
-bool btn_ok_detected = false;
 
 // Mode and state definitions
 typedef enum {
