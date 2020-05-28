@@ -43,12 +43,18 @@ these buttons for our use.
 #include "font.h"
 #include "SSD1306.h"
 #include "buttons.h"
+#include "routine.h"
+#include "routines/main_menu.h"
 #include "Joystick.h"
 
+
 volatile uint32_t milliseconds = 0;
+Routine *current_routine = NULL;
+
+State_t state = STANDBY;
+Mode_t mode = FAST;
 
 uint16_t fruits_bought = 0;
-uint8_t counter = 0;
 
 int main(void) {
 	// We need to disable watchdog if enabled by bootloader/fuses.
@@ -73,27 +79,11 @@ int main(void) {
 	clock_prescale_set(clock_div_1);
 	// The USB stack should be initialized last.
 	//USB_Init();
-
 	GlobalInterruptEnable();
 
+	current_routine = &routine_main_menu;
+
 	for (;;) {
-		// Stop if the OK button is pressed.
-		//if (READ_BTN_OK()) {
-		//	SET_LED_R(false);
-		//	USB_Disable();
-		//	while (1);
-		//}
-
-		// Update button states
-		/*
-		bool btn_sel_current_state = !(PIND & _BV(PD0));
-		bool btn_ok_current_state = !(PIND & _BV(PD7));
-		btn_sel_detected = btn_sel_current_state && !btn_sel_last_state;
-		btn_ok_detected = btn_ok_current_state && !btn_ok_last_state;
-		btn_sel_last_state = btn_sel_current_state;
-		btn_ok_last_state = btn_ok_current_state;
-		*/
-
 		/*if (state == STANDBY) {
 
 			// Blink left LED to indicate selected mode
@@ -147,8 +137,61 @@ int main(void) {
 
 		buttons_debounce();
 
-		display_draw_text(0, 0, PSTR("Menu"), false);
+		display_draw_text(0, 0, current_routine->name, false);
+		if (current_routine->function) {
+			// Execute the routine if it has function
+			(current_routine->function)();
 
+		} else {
+			// Display the menu
+			uint8_t drawn_member_index = current_routine->menu_current_index;
+			if (current_routine->menu_lower_selected) {
+				drawn_member_index--;
+				display_fill_line(0, 2, 128, true);
+			} else {
+				display_fill_line(0, 1, 128, true);
+			}
+			for (uint8_t i = 0; i < 2 && drawn_member_index + i < current_routine->menu_members_length; i++) {
+				display_draw_text(0, 1 + i, current_routine->menu_members[drawn_member_index + i]->name, false);
+			}
+
+			// Control the menu
+			if (BTN_STATE(BTN_LEFT)) {
+				if (current_routine->menu_current_index == 0) {
+					current_routine->menu_current_index = current_routine->menu_members_length - 1;
+					if (current_routine->menu_members_length >= 2) {
+						current_routine->menu_lower_selected = true;
+					}
+				} else {
+					current_routine->menu_current_index--;
+					if (current_routine->menu_lower_selected) {
+						current_routine->menu_lower_selected = false;
+					}
+				}
+			} else if (BTN_STATE(BTN_RIGHT)) {
+				if (current_routine->menu_current_index == current_routine->menu_members_length - 1) {
+					current_routine->menu_current_index = 0;
+					if (current_routine->menu_members_length >= 2) {
+						current_routine->menu_lower_selected = false;
+					}
+				} else {
+					current_routine->menu_current_index++;
+					if (!current_routine->menu_lower_selected) {
+						current_routine->menu_lower_selected = true;
+					}
+				}
+			} else if (BTN_STATE(BTN_PLAY_PAUSE)) {
+				current_routine = current_routine->menu_members[current_routine->menu_current_index];
+			}
+		}
+
+		if (BTN_STATE(BTN_RETURN)) {
+			if (current_routine->upper_level) {
+				current_routine = current_routine->upper_level;
+			}
+		}
+
+		/*
 		if (BTN_STATE(BTN_LEFT)) {
 			counter--;
 		}
@@ -165,6 +208,7 @@ int main(void) {
 		char counter_text[4] = {0};
 		sprintf(counter_text, "%d", counter);
 		display_draw_text(0, 1, counter_text, true);
+		*/
 
 		display_draw_glyph(0, 3, symbol_return, 16);
 		display_draw_glyph(16, 3, symbol_usb, 16);

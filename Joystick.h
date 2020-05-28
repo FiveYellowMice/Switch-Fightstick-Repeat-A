@@ -37,11 +37,11 @@
 #define _JOYSTICK_H_
 
 
-extern volatile uint32_t milliseconds;
-
 // Macros for setting indicators
 #define SET_LED_L(VAL1) ((VAL1) ? (PORTB &= ~_BV(PB0)) : (PORTB |= _BV(PB0)))
 #define SET_LED_R(VAL1) ((VAL1) ? (PORTD &= ~_BV(PD5)) : (PORTD |= _BV(PD5)))
+
+extern volatile uint32_t milliseconds;
 
 // Mode and state definitions
 typedef enum {
@@ -51,7 +51,6 @@ typedef enum {
 	METEOR,
 	OFF,
 } Mode_t;
-Mode_t mode = FAST;
 
 typedef enum {
 	STANDBY,
@@ -59,7 +58,6 @@ typedef enum {
 	RUNNING,
 	STOPPED
 } State_t;
-State_t state = STANDBY;
 
 // Type Defines
 // Enumeration for joystick buttons.
