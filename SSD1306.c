@@ -122,11 +122,20 @@ void display_draw_glyph(int16_t x, int8_t line, const uint16_t *glyph, uint8_t g
 	}
 }
 
-void display_draw_text(int16_t x, int8_t line, const char *s) {
+void display_draw_text(int16_t x, int8_t line, const char *s, bool is_ram) {
 	char c;
-	for (uint8_t i = 0; (c = pgm_read_byte(s + i)) != '\0'; i++) {
+	uint8_t i = 0;
+	while (1) {
+		if (is_ram) {
+			c = s[i];
+		} else {
+			c = pgm_read_byte(s + i);
+		}
+		if (c == '\0') break;
+
 		if (c >= ' ' && c <= '~') {
 			display_draw_glyph(x + i * GLYPH_WIDTH_CHAR, line, font + (c - 0x20) * GLYPH_WIDTH_CHAR, GLYPH_WIDTH_CHAR);
 		}
+		i++;
 	}
 }

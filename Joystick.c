@@ -31,6 +31,7 @@ these buttons for our use.
 #include <avr/pgmspace.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 
 #include <LUFA/Drivers/USB/USB.h>
 #include <LUFA/Drivers/Board/Joystick.h>
@@ -44,7 +45,7 @@ these buttons for our use.
 #include "Joystick.h"
 
 uint16_t fruits_bought = 0;
-uint16_t lit_pixels = 0;
+uint8_t counter = 0;
 
 int main(void) {
 	// We need to disable watchdog if enabled by bootloader/fuses.
@@ -144,13 +145,14 @@ int main(void) {
 		}*/
 
 		if (!(PIND & _BV(PD4))) {
-			//SET_LED_L(true);
-		} else {
-			//SET_LED_L(false);
+			counter++;
 		}
 
-		display_draw_text(0, 0, PSTR("Menu"));
-		display_draw_text(49, 2, PSTR("OwO"));
+		display_draw_text(0, 0, PSTR("Menu"), false);
+		char counter_text[4] = {0};
+		sprintf(counter_text, "%d", counter);
+		display_draw_text(0, 1, counter_text, true);
+		display_draw_text(49, 2, PSTR("OwO"), false);
 		display_draw_glyph(0, 3, symbol_return, 16);
 		display_draw_glyph(16, 3, symbol_usb, 16);
 		display_draw_glyph(32, 3, symbol_play, 16);

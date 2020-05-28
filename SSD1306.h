@@ -10,4 +10,4 @@ void display_clear(void);
 
 void display_fill_line(int16_t x, int8_t line, uint8_t length, bool c);
 void display_draw_glyph(int16_t x, int8_t line, const uint16_t *glyph, uint8_t glyph_width);
-void display_draw_text(int16_t x, int8_t line, const char *s);
+void display_draw_text(int16_t x, int8_t line, const char *s, bool is_ram);
