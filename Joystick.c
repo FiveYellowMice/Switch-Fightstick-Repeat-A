@@ -138,8 +138,7 @@ int main(void) {
 		buttons_debounce();
 
 		Routine_Flags routine_flags = {0};
-		routine_flags.returnable = (bool) current_routine->upper_level;
-		routine_flags.indicator_return = (bool) current_routine->upper_level;
+		routine_flags.returnable = routine_flags.indicator_return =  current_routine->upper_level != current_routine;
 
 		display_draw_text(0, 0, current_routine->name, false);
 
@@ -193,7 +192,7 @@ int main(void) {
 			}
 		}
 
-		if (routine_flags.returnable && current_routine->upper_level) {
+		if (routine_flags.returnable) {
 			if (BTN_STATE(BTN_RETURN)) {
 				current_routine = current_routine->upper_level;
 			}
