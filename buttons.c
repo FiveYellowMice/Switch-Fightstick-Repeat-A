@@ -1,4 +1,5 @@
 #include <avr/io.h>
+#include <avr/interrupt.h>
 #include "buttons.h"
 
 uint8_t buttons_state = 0x00;
@@ -7,13 +8,19 @@ void buttons_setup(void) {
 	// Set up button pins to INPUT_PULLUP
 	DDRB &= ~_BV(PB4); // D8, btn_left
 	PORTB |= _BV(PB4);
-	DDRE &= ~_BV(PE6); // D7, btn_return
-	PORTE |= _BV(PE6);
+	DDRD &= ~_BV(PD2); // D0, btn_return
+	PORTD |= _BV(PD2);
 	DDRC &= ~_BV(PC6); // D5, btn_play_pause
 	PORTC |= _BV(PC6);
 	DDRD &= ~_BV(PD4); // D4, btn_right
 	PORTD |= _BV(PD4);
+
+	// Enable falling edge interrupt on btn_return for waking up
+	EICRA |= _BV(ISC21);
+	EIMSK |= _BV(INT2);
 }
+
+EMPTY_INTERRUPT(INT2_vect);
 
 void buttons_debounce(void) {
 	buttons_state = 0x00;
@@ -24,7 +31,7 @@ void buttons_debounce(void) {
 
 	uint8_t current_state =
 		(!(PINB & _BV(PB4)) << 3) |
-		(!(PINE & _BV(PE6)) << 2) |
+		(!(PIND & _BV(PD2)) << 2) |
 		(!(PINC & _BV(PC6)) << 1) |
 		!(PIND & _BV(PD4));
 

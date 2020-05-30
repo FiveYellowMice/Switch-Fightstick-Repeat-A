@@ -43,6 +43,11 @@ int SSD1306_setup(void) {
 	return 0;
 }
 
+int SSD1306_power(bool power) {
+	uint8_t commands[] = {power ? 0xAF : 0xAE};
+	return SSD1306_command_list(commands, sizeof(commands));
+}
+
 int SSD1306_display(void) {
 	uint8_t pre_display_sequence[] = {
 		0x22, 0x00, 0xFF, // Set page address

@@ -29,6 +29,7 @@ these buttons for our use.
 #include <avr/power.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
+#include <avr/sleep.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
@@ -57,6 +58,10 @@ USB_JoystickReport_Input_t usb_report;
 USB_JoystickReport_Input_t usb_last_report;
 
 int main(void) {
+	// Shut down modules we don't use: Timer1, Timer3, SPI, ADC, USART1
+	PRR0 |= _BV(PRTIM1) | _BV(PRSPI) | _BV(PRADC);
+	PRR1 |= _BV(PRTIM3) | _BV(PRUSART1);
+
 	// We need to disable watchdog if enabled by bootloader/fuses.
 	MCUSR &= ~(1 << WDRF);
 	wdt_disable();
@@ -84,6 +89,22 @@ int main(void) {
 	current_routine = &routine_main_menu;
 
 	for (;;) {
+		if (sleep) {
+			// MCU sleep process
+			SET_LED_L(SSD1306_power(false));
+			if (USB_IsInitialized) USB_Disable();
+			set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+			cli();
+			sleep_enable();
+			sei();
+			sleep_cpu();
+
+			// After waking up
+			sleep_disable();
+			sleep = false;
+			SET_LED_L(SSD1306_power(true));
+		}
+
 		buttons_debounce();
 
 		if (USB_IsInitialized && USB_DeviceState == DEVICE_STATE_Configured) {
