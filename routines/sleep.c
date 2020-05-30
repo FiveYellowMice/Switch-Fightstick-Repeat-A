@@ -11,6 +11,9 @@ void routine_sleep_function(Routine_Flags *routine_flags) {
 	routine_flags->returnable = routine_flags->indicator_return = false;
 	sleep = true;
 	routine_flags->next_routine = &routine_main_menu;
+	// Reset main menu position
+	routine_main_menu.menu_current_index = 0;
+	routine_main_menu.menu_lower_selected = false;
 }
 
 DEFINE_ROUTINE_FUNCTION(sleep, "Sleep", main_menu)
