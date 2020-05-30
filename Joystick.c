@@ -48,13 +48,13 @@ these buttons for our use.
 #include "Joystick.h"
 
 
-volatile uint32_t milliseconds = 0;
+volatile milliseconds_t milliseconds = 0;
+bool sleep = false;
 Routine *current_routine = NULL;
 
-State_t state = STANDBY;
-Mode_t mode = FAST;
-
-uint16_t fruits_bought = 0;
+#define USB_ECHOES 2
+USB_JoystickReport_Input_t usb_report;
+USB_JoystickReport_Input_t usb_last_report;
 
 int main(void) {
 	// We need to disable watchdog if enabled by bootloader/fuses.
@@ -84,73 +84,34 @@ int main(void) {
 	current_routine = &routine_main_menu;
 
 	for (;;) {
-		/*if (state == STANDBY) {
-
-			// Blink left LED to indicate selected mode
-			switch (mode) {
-				case FAST:
-					SET_LED_L(milliseconds % 100 < 50);
-					break;
-				case SLOW:
-					SET_LED_L(milliseconds % 500 < 50);
-					break;
-				case NOOKS_CRANNY_BULK_BUY:
-					SET_LED_L(milliseconds % 600 < 50 || (milliseconds % 600 >= 100 && milliseconds % 600 < 150));
-					break;
-				case METEOR:
-					SET_LED_L((milliseconds % 1500 >= 500 && milliseconds % 1500 < 550) || milliseconds % 1500 >= 1000);
-					break;
-				case OFF:
-					break;
-			}
-
-			// Switch selected modes
-			if (btn_sel_detected) {
-				SET_LED_L(false);
-				if (mode == OFF) {
-					mode = 0;
-				} else {
-					mode++;
-				}
-			}
-			if (btn_ok_detected && mode != OFF) {
-				// Start running
-				SET_LED_L(false);
-				USB_Init();
-				fruits_bought = 0;
-				milliseconds = 0;
-				state = SYNC_CONTROLLER;
-			}
-
-		} else if (state == STOPPED) {
-			// Stop running
-			SET_LED_R(false);
-			USB_Disable();
-			milliseconds = 0;
-			state = STANDBY;
-
-		} else {
-			if (btn_ok_detected) {
-				state = STOPPED;
-			}
-		}*/
-
 		buttons_debounce();
 
+		if (USB_IsInitialized && USB_DeviceState == DEVICE_STATE_Configured) {
+			// Clear USB report
+			memset(&usb_report, 0, sizeof(USB_JoystickReport_Input_t));
+			usb_report.LX = STICK_CENTER;
+			usb_report.LY = STICK_CENTER;
+			usb_report.RX = STICK_CENTER;
+			usb_report.RY = STICK_CENTER;
+			usb_report.HAT = HAT_CENTER;
+		}
+
+		// Prepare default routine flags
 		Routine_Flags routine_flags = {0};
 		routine_flags.returnable = routine_flags.indicator_return =  current_routine->upper_level != current_routine;
 
+		// Draw the title
 		display_draw_text(0, 0, current_routine->name, false);
 
 		if (current_routine->function) {
-			// Execute the routine if it has function
+			// Execute the routine if it has a function
 			(current_routine->function)(&routine_flags);
 
 		} else {
+			// Menu
 			routine_flags.indicator_left = true;
 			routine_flags.indicator_right = true;
 
-			// Display the menu
 			uint8_t drawn_member_index = current_routine->menu_current_index;
 			if (current_routine->menu_lower_selected) {
 				drawn_member_index--;
@@ -162,7 +123,6 @@ int main(void) {
 				display_draw_text(0, 1 + i, current_routine->menu_members[drawn_member_index + i]->name, false);
 			}
 
-			// Control the menu
 			if (BTN_STATE(BTN_LEFT)) {
 				if (current_routine->menu_current_index == 0) {
 					current_routine->menu_current_index = current_routine->menu_members_length - 1;
@@ -198,10 +158,11 @@ int main(void) {
 			}
 		}
 
+		// Draw indicators
 		if (routine_flags.indicator_return) {
 			display_draw_glyph(0, 3, symbol_return, 16);
 		}
-		if (routine_flags.indicator_usb) {
+		if (USB_IsInitialized && USB_DeviceState == DEVICE_STATE_Configured) {
 			display_draw_glyph(16, 3, symbol_usb, 16);
 		}
 		if (routine_flags.indicator_play_pause == PAUSE) {
@@ -263,7 +224,7 @@ void EVENT_USB_Device_ControlRequest(void) {
 // Process and deliver data from IN and OUT endpoints.
 void HID_Task(void) {
 	// If the device isn't connected and properly configured, we can't do anything here.
-	if (USB_DeviceState != DEVICE_STATE_Configured)
+	if (!USB_IsInitialized || USB_DeviceState != DEVICE_STATE_Configured)
 		return;
 
 	// We'll start with the OUT endpoint.
@@ -291,21 +252,24 @@ void HID_Task(void) {
 	// We first check to see if the host is ready to accept data.
 	if (Endpoint_IsINReady())
 	{
-		// We'll create an empty report.
-		USB_JoystickReport_Input_t JoystickInputData;
-		// We'll then populate this report with what we want to send to the host.
-		GetNextReport(&JoystickInputData);
+		static int echoes = 0;
+		if (echoes > 0) {
+			// Repeat USB_ECHOES times the last report
+			memcpy(&usb_report, &usb_last_report, sizeof(USB_JoystickReport_Input_t));
+			echoes--;
+		} else {
+			// Prepare to echo this report
+			memcpy(&usb_last_report, &usb_report, sizeof(USB_JoystickReport_Input_t));
+			echoes = USB_ECHOES;
+		}
 		// Once populated, we can output this data to the host. We do this by first writing the data to the control stream.
-		while(Endpoint_Write_Stream_LE(&JoystickInputData, sizeof(JoystickInputData), NULL) != ENDPOINT_RWSTREAM_NoError);
+		while(Endpoint_Write_Stream_LE(&usb_report, sizeof(usb_report), NULL) != ENDPOINT_RWSTREAM_NoError);
 		// We then send an IN packet on this endpoint.
 		Endpoint_ClearIN();
 	}
 }
 
-#define ECHOES 2
-int echoes = 0;
-USB_JoystickReport_Input_t last_report;
-
+/*
 // Prepare the next report for the host.
 void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 
@@ -413,3 +377,4 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 	echoes = ECHOES;
 
 }
+*/

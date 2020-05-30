@@ -41,24 +41,6 @@
 #define SET_LED_L(VAL1) ((VAL1) ? (PORTB &= ~_BV(PB0)) : (PORTB |= _BV(PB0)))
 #define SET_LED_R(VAL1) ((VAL1) ? (PORTD &= ~_BV(PD5)) : (PORTD |= _BV(PD5)))
 
-extern volatile uint32_t milliseconds;
-
-// Mode and state definitions
-typedef enum {
-	FAST,
-	SLOW,
-	NOOKS_CRANNY_BULK_BUY,
-	METEOR,
-	OFF,
-} Mode_t;
-
-typedef enum {
-	STANDBY,
-	SYNC_CONTROLLER,
-	RUNNING,
-	STOPPED
-} State_t;
-
 // Type Defines
 // Enumeration for joystick buttons.
 typedef enum {
@@ -113,6 +95,13 @@ typedef struct {
 	uint8_t  RX;     // Right Stick X
 	uint8_t  RY;     // Right Stick Y
 } USB_JoystickReport_Output_t;
+
+typedef uint32_t milliseconds_t;
+
+// Global variables
+extern volatile milliseconds_t milliseconds;
+extern bool sleep;
+extern USB_JoystickReport_Input_t usb_report;
 
 // Function Prototypes
 // Process and deliver data from IN and OUT endpoints.

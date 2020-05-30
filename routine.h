@@ -7,11 +7,9 @@ enum _Routine_Flag_Indicator_PlayPause {
 typedef struct {
 	bool returnable : 1;
 	bool indicator_return : 1;
-	bool indicator_usb : 1;
 	enum _Routine_Flag_Indicator_PlayPause indicator_play_pause : 2;
 	bool indicator_left : 1;
 	bool indicator_right : 1;
-	bool return_immediately : 1;
 } Routine_Flags;
 
 typedef struct _Routine {
