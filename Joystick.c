@@ -50,7 +50,7 @@ these buttons for our use.
 
 
 volatile milliseconds_t milliseconds = 0;
-bool sleep = false;
+bool sleep = true; // Enter sleep mode when powered on
 Routine *current_routine = NULL;
 
 #define USB_ECHOES 2
