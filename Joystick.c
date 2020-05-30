@@ -152,10 +152,14 @@ int main(void) {
 			}
 		}
 
-		if (routine_flags.returnable) {
+		if (!routine_flags.next_routine && routine_flags.returnable) {
 			if (BTN_STATE(BTN_RETURN)) {
-				current_routine = current_routine->upper_level;
+				routine_flags.next_routine = current_routine->upper_level;
 			}
+		}
+
+		if (routine_flags.next_routine) {
+			current_routine = routine_flags.next_routine;
 		}
 
 		// Draw indicators

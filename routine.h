@@ -10,6 +10,7 @@ typedef struct {
 	enum _Routine_Flag_Indicator_PlayPause indicator_play_pause : 2;
 	bool indicator_left : 1;
 	bool indicator_right : 1;
+	struct _Routine *next_routine;
 } Routine_Flags;
 
 typedef struct _Routine {
