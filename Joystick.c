@@ -98,6 +98,7 @@ int main(void) {
 			sleep_enable();
 			sei();
 			sleep_cpu();
+			// Pressing btn_return (PCINT0) should wake the MCU up
 
 			// After waking up
 			sleep_disable();
