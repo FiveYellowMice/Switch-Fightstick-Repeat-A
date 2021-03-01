@@ -6,16 +6,16 @@ uint8_t buttons_state = 0x00;
 
 void buttons_setup(void) {
 	// Set up button pins to INPUT_PULLUP
-	DDRB &= ~_BV(PB5); // D9, btn_left
-	PORTB |= _BV(PB5);
-	DDRB &= ~_BV(PB4); // D8, btn_return
+	DDRB &= ~_BV(PB4); // D8, btn_left
 	PORTB |= _BV(PB4);
+	DDRB &= ~_BV(PB5); // D9, btn_return
+	PORTB |= _BV(PB5);
 	DDRB &= ~_BV(PB2); // D16, btn_play_pause
 	PORTB |= _BV(PB2);
 	DDRB &= ~_BV(PB3); // D14, btn_right
 	PORTB |= _BV(PB3);
 
-	// Enable pin change interrupt on btn_return for waking up
+	// Enable pin change interrupt on btn_left for waking up
 	PCMSK0 |= _BV(PCINT4);
 	PCICR |= _BV(PCIE0);
 }
@@ -30,8 +30,8 @@ void buttons_debounce(void) {
 	static uint8_t last_state = 0xFF;
 
 	uint8_t current_state =
-		(!(PINB & _BV(PB5)) << 3) |
-		(!(PINB & _BV(PB4)) << 2) |
+		(!(PINB & _BV(PB4)) << 3) |
+		(!(PINB & _BV(PB5)) << 2) |
 		(!(PINB & _BV(PB2)) << 1) |
 		!(PINB & _BV(PB3));
 
